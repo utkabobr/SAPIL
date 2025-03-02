@@ -69,6 +69,9 @@ public class APILibrary {
                 if (config != null) headers.put("User-Agent", config.getDefaultUserAgent());
                 else headers.put("User-Agent", APIRunner.DEFAULT_USER_AGENT);
 
+                Map<String, String> defHeaders = config != null ? config.getDefaultHeaders() : null;
+                if (defHeaders != null) headers.putAll(defHeaders);
+
                 for (int i = 0; i < args.length; i++) {
                     Class<?> argClz = method.getParameterTypes()[i];
 

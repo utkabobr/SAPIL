@@ -1,5 +1,7 @@
 package ru.ytkab0bp.sapil;
 
+import java.util.Map;
+
 import ru.ytkab0bp.sapil.util.Pair;
 
 public interface APIRunner {
@@ -24,6 +26,10 @@ public interface APIRunner {
 
         default String getDefaultUserAgent() {
             return DEFAULT_USER_AGENT;
+        }
+
+        default Map<String, String> getDefaultHeaders() {
+            return null;
         }
     }
 }
