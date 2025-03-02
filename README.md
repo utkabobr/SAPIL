@@ -1,2 +1,2 @@
-# SAPIL
-Stupid Simple REST API Library for Android
+# SAPIL - Stupid **S**imple REST **API** **L**ibrary
+
