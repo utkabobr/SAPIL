@@ -3,9 +3,11 @@ package ru.ytkab0bp.sapil;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
+import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
@@ -18,6 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -162,6 +165,7 @@ public class APILibrary {
                 APIRequestHandleImpl handle = new APIRequestHandleImpl(IO_POOL.submit(() -> {
                     try {
                         HttpURLConnection con = (HttpURLConnection) urlObj.openConnection();
+                        con.setRequestMethod(type.name());
                         con.setDoOutput(type != RequestType.GET);
                         for (Map.Entry<String, String> en : headers.entrySet()) {
                             con.addRequestProperty(en.getKey(), en.getValue());
@@ -169,15 +173,20 @@ public class APILibrary {
                         if (con.getDoOutput()) {
                             OutputStream out = con.getOutputStream();
 
-                            StringBuilder sb = new StringBuilder();
-                            boolean first = true;
-                            for (Map.Entry<String, String> en : params.entrySet()) {
-                                if (first) first = false;
-                                else sb.append("&");
+                            // Raw data support
+                            if (params.size() == 1 && params.containsKey("")) {
+                                out.write(params.get("").getBytes(StandardCharsets.UTF_8));
+                            } else {
+                                StringBuilder sb = new StringBuilder();
+                                boolean first = true;
+                                for (Map.Entry<String, String> en : params.entrySet()) {
+                                    if (first) first = false;
+                                    else sb.append("&");
 
-                                sb.append(URLEncoder.encode(en.getKey(), "UTF-8")).append("=").append(URLEncoder.encode(en.getValue(), "UTF-8"));
+                                    sb.append(URLEncoder.encode(en.getKey(), "UTF-8")).append("=").append(URLEncoder.encode(en.getValue(), "UTF-8"));
+                                }
+                                out.write(sb.toString().getBytes(StandardCharsets.UTF_8));
                             }
-                            out.write(sb.toString().getBytes(StandardCharsets.UTF_8));
 
                             // TODO: Multipart support
 
@@ -187,13 +196,32 @@ public class APILibrary {
                         Object result = null;
                         if (finalCallback != null) {
                             InputStream in = con.getInputStream();
-                            InputStreamReader reader = new InputStreamReader(in);
+                            if (finalCallbackType == InputStream.class) {
+                                result = in;
+                            } else {
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                                if (finalCallbackType == String.class) {
+                                    result = reader.readLine();
+                                } else if (finalCallbackType == Boolean.class) {
+                                    result = Boolean.parseBoolean(reader.readLine());
+                                } else if (finalCallbackType == Integer.class) {
+                                    result = Integer.parseInt(reader.readLine());
+                                } else if (finalCallbackType == Float.class) {
+                                    result = Float.parseFloat(reader.readLine());
+                                } else if (finalCallbackType == Long.class) {
+                                    result = Long.parseLong(reader.readLine());
+                                } else if (finalCallbackType == Double.class) {
+                                    result = Double.parseDouble(reader.readLine());
+                                } else if (finalCallbackType == Byte.class) {
+                                    result = Byte.parseByte(reader.readLine());
+                                } else {
+                                    JsonElement el = JsonParser.parseReader(reader);
+                                    result = mConfig.gson.fromJson(el, finalCallbackType);
+                                }
 
-                            JsonElement el = JsonParser.parseReader(reader);
-                            result = mConfig.gson.fromJson(el, finalCallbackType);
-
-                            reader.close();
-                            in.close();
+                                reader.close();
+                                in.close();
+                            }
                         }
 
                         if (result != null) {
